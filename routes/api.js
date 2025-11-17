@@ -81,17 +81,17 @@ router.route('/threads/:board')
     res.send('success');
   })
 
-  // Reportar thread
-  .put((req, res) => {
-    const board = req.params.board;
-    const { report_id } = req.body; // FCC lo quiere explícito
+.put((req, res) => {
+  const board = req.params.board;
+  const { thread_id } = req.body; // FCC envía thread_id
 
-    const thread = (threadsDB[board] || []).find(t => t._id === report_id);
-    if (!thread) return res.send('not found');
+  const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
+  if (!thread) return res.send('not found');
 
-    thread.reported = true;
-    res.send('reported');
-  });
+  thread.reported = true;
+  res.send('reported');
+});
+
 
 // ===============================
 // REPLIES
