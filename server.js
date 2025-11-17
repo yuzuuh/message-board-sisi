@@ -12,12 +12,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Seguridad básica
-app.use(
-  helmet({
-    contentSecurityPolicy: false
-  })
-);
+// ------- Helmet requeridos por FCC -------
+app.use(helmet({
+  contentSecurityPolicy: false
+}));
+
+// 2. Allow iframe only from same origin
+app.use(helmet.frameguard({ action: 'sameorigin' }));
+
+// 3. Disable DNS prefetching
+app.use(helmet.dnsPrefetchControl({ allow: false }));
+
+// 4. Send referrer only for same-origin pages
+app.use(helmet.referrerPolicy({ policy: 'same-origin' }));
+// -----------------------------------------
 
 // Rutas
 app.use('/api', apiRoutes);

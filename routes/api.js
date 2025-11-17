@@ -30,15 +30,25 @@ router.route('/threads/:board')
     };
 
     threadsDB[board].push(newThread);
-    res.json(newThread);
+
+    // FCC no quiere delete_password ni reported en la respuesta
+    res.json({
+      _id: newThread._id,
+      text: newThread.text,
+      created_on: newThread.created_on,
+      bumped_on: newThread.bumped_on,
+      replies: []
+    });
   })
 
-  // Obtener threads (máx. 10, con 3 replies)
+  // Obtener threads (máx. 10, ordenados por bumped_on desc., replies máx. 3)
   .get((req, res) => {
     const board = req.params.board;
     const threads = threadsDB[board] || [];
 
     const response = threads
+      .sort((a, b) => b.bumped_on - a.bumped_on) // requerido por FCC
+      .slice(0, 10)
       .map(t => ({
         _id: t._id,
         text: t.text,
@@ -50,8 +60,7 @@ router.route('/threads/:board')
           created_on: r.created_on
         })),
         replycount: t.replies.length
-      }))
-      .slice(-10);
+      }));
 
     res.json(response);
   })
@@ -76,8 +85,6 @@ router.route('/threads/:board')
   // Reportar thread
   .put((req, res) => {
     const board = req.params.board;
-
-    // FCC usa report_id → aceptamos ambos
     const thread_id = req.body.thread_id || req.body.report_id;
 
     const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
@@ -111,7 +118,18 @@ router.route('/replies/:board')
     thread.replies.push(reply);
     thread.bumped_on = new Date();
 
-    res.json(thread);
+    // FCC no acepta delete_password ni reported en la respuesta
+    res.json({
+      _id: thread._id,
+      text: thread.text,
+      created_on: thread.created_on,
+      bumped_on: thread.bumped_on,
+      replies: thread.replies.map(r => ({
+        _id: r._id,
+        text: r.text,
+        created_on: r.created_on
+      }))
+    });
   })
 
   // Obtener thread con replies
@@ -149,7 +167,6 @@ router.route('/replies/:board')
     if (reply.delete_password !== delete_password)
       return res.send('incorrect password');
 
-    // FCC espera EXACTAMENTE "[deleted]"
     reply.text = '[deleted]';
     res.send('success');
   })
@@ -157,8 +174,6 @@ router.route('/replies/:board')
   // Reportar reply
   .put((req, res) => {
     const board = req.params.board;
-
-    // FCC envía report_id → lo aceptamos como thread_id
     const thread_id = req.body.thread_id || req.body.report_id;
     const reply_id = req.body.reply_id;
 
