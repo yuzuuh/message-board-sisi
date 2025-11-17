@@ -14,7 +14,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ------------------------------------------------
-// 🔐 Helmet configurado para FreeCodeCamp
+// 🔐 Helmet configurado EXACTO para FreeCodeCamp
 // ------------------------------------------------
 
 // 1. Deshabilitar CSP porque FCC lo requiere
@@ -44,6 +44,7 @@ app.use(
     policy: 'same-origin',
   })
 );
+
 // ------------------------------------------------
 
 // Rutas API
