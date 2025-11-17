@@ -31,7 +31,6 @@ router.route('/threads/:board')
 
     threadsDB[board].push(newThread);
 
-    // FCC no quiere delete_password ni reported en la respuesta
     res.json({
       _id: newThread._id,
       text: newThread.text,
@@ -41,13 +40,13 @@ router.route('/threads/:board')
     });
   })
 
-  // Obtener threads (máx. 10, ordenados por bumped_on desc., replies máx. 3)
+  // Obtener threads
   .get((req, res) => {
     const board = req.params.board;
     const threads = threadsDB[board] || [];
 
     const response = threads
-      .sort((a, b) => b.bumped_on - a.bumped_on) // requerido por FCC
+      .sort((a, b) => b.bumped_on - a.bumped_on)
       .slice(0, 10)
       .map(t => ({
         _id: t._id,
@@ -85,9 +84,9 @@ router.route('/threads/:board')
   // Reportar thread
   .put((req, res) => {
     const board = req.params.board;
-    const thread_id = req.body.thread_id || req.body.report_id;
+    const { report_id } = req.body; // FCC lo quiere explícito
 
-    const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
+    const thread = (threadsDB[board] || []).find(t => t._id === report_id);
     if (!thread) return res.send('not found');
 
     thread.reported = true;
@@ -118,7 +117,6 @@ router.route('/replies/:board')
     thread.replies.push(reply);
     thread.bumped_on = new Date();
 
-    // FCC no acepta delete_password ni reported en la respuesta
     res.json({
       _id: thread._id,
       text: thread.text,
@@ -132,10 +130,10 @@ router.route('/replies/:board')
     });
   })
 
-  // Obtener thread con replies
+  // Obtener thread completo
   .get((req, res) => {
     const board = req.params.board;
-    const thread_id = req.query.thread_id;
+    const { thread_id } = req.query;
 
     const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
     if (!thread) return res.send('not found');
@@ -174,8 +172,7 @@ router.route('/replies/:board')
   // Reportar reply
   .put((req, res) => {
     const board = req.params.board;
-    const thread_id = req.body.thread_id || req.body.report_id;
-    const reply_id = req.body.reply_id;
+    const { thread_id, reply_id } = req.body; // FCC lo quiere explícito
 
     const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
     if (!thread) return res.send('not found');
