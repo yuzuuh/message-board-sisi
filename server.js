@@ -1,48 +1,53 @@
 'use strict';
+
 require('dotenv').config();
 const express = require('express');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
 const cors = require('cors');
+const helmet = require('helmet');
 const mongoose = require('mongoose');
-const routes = require('./routes/api');
 
+const apiRoutes = require('./routes/api');
 
 const app = express();
 
-
-// Security middlewares
-app.use(helmet());
+// Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(mongoSanitize()); // remove $ and . from reqs
 
+// Seguridad básica
+app.use(
+  helmet({
+    contentSecurityPolicy: false
+  })
+);
 
-// simple rate limiter
-const limiter = rateLimit({
-windowMs: 60 * 1000, // 1 minute
-max: 100
+// Rutas
+app.use('/api', apiRoutes);
+
+// Home
+app.get('/', (req, res) => {
+  res.send('Message Board API is running');
 });
-app.use(limiter);
 
-
-// routes
-app.use('/api', routes);
-
-
-// connect to DB
+// --- MONGODB ---
 const DB = process.env.DB || 'mongodb://127.0.0.1:27017/messageboard';
+
 mongoose.set('strictQuery', false);
-mongoose.connect(DB, { useNewUrlParser: true, useUnifiedTopology: true })
-.then(() => {
-if (process.env.NODE_ENV !== 'test') {
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Listening on port ${port}`));
-}
-})
-.catch(err => console.error('DB connection error:', err));
 
+mongoose
+  .connect(DB, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log('DB connected');
 
-module.exports = app; // for testing
+    // Evitamos que el servidor arranque en modo test
+    if (process.env.NODE_ENV !== 'test') {
+      const PORT = process.env.PORT || 3000;
+      app.listen(PORT, () =>
+        console.log(`Server running on port ${PORT}`)
+      );
+    }
+  })
+  .catch((err) => console.error('MongoDB error:', err));
+
+module.exports = app;
