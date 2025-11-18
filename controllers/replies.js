@@ -1,4 +1,4 @@
-const Thread = require('../models/Thread');
+const Thread = require('../models/threads');
 
 module.exports = {
   async getReplies(req, res) {

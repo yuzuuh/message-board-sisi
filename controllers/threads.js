@@ -1,4 +1,4 @@
-const Thread = require('../models/Thread');
+const Thread = require('../models/threads');
 const Reply = require('../models/Reply');
 
 module.exports = {
