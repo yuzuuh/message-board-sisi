@@ -1,187 +1,107 @@
+'use strict';
+
 const express = require('express');
 const router = express.Router();
 
-// Base de datos en memoria
-const threadsDB = {}; // { board: [ { ...thread } ] }
+let threads = {}; // { boardName: [ { thread }, { thread } ] }
 
-// Generador simple de IDs
-const generateId = () => Math.random().toString(36).substring(2, 15);
-
-// ===============================
-// THREADS
-// ===============================
 router.route('/threads/:board')
 
-  // Crear thread
+  // GET threads
+  .get((req, res) => {
+    const board = req.params.board;
+    res.json(threads[board] || []);
+  })
+
+  // POST new thread
   .post((req, res) => {
     const board = req.params.board;
     const { text, delete_password } = req.body;
 
-    if (!threadsDB[board]) threadsDB[board] = [];
+    if (!threads[board]) threads[board] = [];
 
     const newThread = {
-      _id: generateId(),
+      _id: Date.now().toString(),
       text,
-      created_on: new Date(),
-      bumped_on: new Date(),
-      reported: false,
       delete_password,
       replies: []
     };
 
-    threadsDB[board].push(newThread);
+    threads[board].push(newThread);
 
-    res.json({
-      _id: newThread._id,
-      text: newThread.text,
-      created_on: newThread.created_on,
-      bumped_on: newThread.bumped_on,
-      replies: []
-    });
+    res.json(newThread);
   })
 
-  // Obtener threads
-  .get((req, res) => {
-    const board = req.params.board;
-    const threads = threadsDB[board] || [];
-
-    const response = threads
-      .sort((a, b) => b.bumped_on - a.bumped_on)
-      .slice(0, 10)
-      .map(t => ({
-        _id: t._id,
-        text: t.text,
-        created_on: t.created_on,
-        bumped_on: t.bumped_on,
-        replies: t.replies.slice(-3).map(r => ({
-          _id: r._id,
-          text: r.text,
-          created_on: r.created_on
-        })),
-        replycount: t.replies.length
-      }));
-
-    res.json(response);
-  })
-
-  // Borrar thread
+  // DELETE thread
   .delete((req, res) => {
     const board = req.params.board;
     const { thread_id, delete_password } = req.body;
 
-    if (!threadsDB[board]) return res.send('incorrect password');
+    if (!threads[board]) return res.send('incorrect password');
 
-    const index = threadsDB[board].findIndex(t => t._id === thread_id);
-    if (index === -1) return res.send('incorrect password');
+    const threadIndex = threads[board].findIndex(t => t._id === thread_id);
 
-    if (threadsDB[board][index].delete_password !== delete_password)
+    if (threadIndex === -1) return res.send('incorrect password');
+
+    if (threads[board][threadIndex].delete_password !== delete_password) {
       return res.send('incorrect password');
+    }
 
-    threadsDB[board].splice(index, 1);
+    threads[board].splice(threadIndex, 1);
     res.send('success');
-  })
-
-.put((req, res) => {
-  const board = req.params.board;
-  const { thread_id } = req.body; // FCC envía thread_id
-
-  const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
-  if (!thread) return res.send('not found');
-
-  thread.reported = true;
-  res.send('reported');
-});
+  });
 
 
-// ===============================
-// REPLIES
-// ===============================
+// Replies
 router.route('/replies/:board')
 
-  // Crear reply
+  // GET replies
+  .get((req, res) => {
+    const board = req.params.board;
+    const thread_id = req.query.thread_id;
+
+    const thread = (threads[board] || []).find(t => t._id === thread_id);
+    if (!thread) return res.json({});
+
+    res.json(thread);
+  })
+
+  // POST reply
   .post((req, res) => {
     const board = req.params.board;
     const { thread_id, text, delete_password } = req.body;
 
-    const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
+    const thread = (threads[board] || []).find(t => t._id === thread_id);
     if (!thread) return res.send('thread not found');
 
     const reply = {
-      _id: generateId(),
+      _id: Date.now().toString(),
       text,
-      created_on: new Date(),
-      delete_password,
-      reported: false
+      delete_password
     };
 
     thread.replies.push(reply);
-    thread.bumped_on = new Date();
 
-    res.json({
-      _id: thread._id,
-      text: thread.text,
-      created_on: thread.created_on,
-      bumped_on: thread.bumped_on,
-      replies: thread.replies.map(r => ({
-        _id: r._id,
-        text: r.text,
-        created_on: r.created_on
-      }))
-    });
+    res.json(thread);
   })
 
-  // Obtener thread completo
-  .get((req, res) => {
-    const board = req.params.board;
-    const { thread_id } = req.query;
-
-    const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
-    if (!thread) return res.send('not found');
-
-    res.json({
-      _id: thread._id,
-      text: thread.text,
-      created_on: thread.created_on,
-      bumped_on: thread.bumped_on,
-      replies: thread.replies.map(r => ({
-        _id: r._id,
-        text: r.text,
-        created_on: r.created_on
-      }))
-    });
-  })
-
-  // Borrar reply
+  // DELETE reply
   .delete((req, res) => {
     const board = req.params.board;
     const { thread_id, reply_id, delete_password } = req.body;
 
-    const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
-    if (!thread) return res.send('not found');
+    const thread = (threads[board] || []).find(t => t._id === thread_id);
+    if (!thread) return res.send('incorrect password');
 
     const reply = thread.replies.find(r => r._id === reply_id);
-    if (!reply) return res.send('not found');
+    if (!reply) return res.send('incorrect password');
 
-    if (reply.delete_password !== delete_password)
+    if (reply.delete_password !== delete_password) {
       return res.send('incorrect password');
+    }
 
     reply.text = '[deleted]';
     res.send('success');
-  })
-
-  // Reportar reply
-  .put((req, res) => {
-    const board = req.params.board;
-    const { thread_id, reply_id } = req.body; // FCC lo quiere explícito
-
-    const thread = (threadsDB[board] || []).find(t => t._id === thread_id);
-    if (!thread) return res.send('not found');
-
-    const reply = thread.replies.find(r => r._id === reply_id);
-    if (!reply) return res.send('not found');
-
-    reply.reported = true;
-    res.send('reported');
   });
 
 module.exports = router;
