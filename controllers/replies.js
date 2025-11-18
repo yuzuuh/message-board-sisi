@@ -1,81 +1,58 @@
-"use strict";
-
-const Thread = require("../models/Thread");
+const Thread = require('../models/Thread');
 
 module.exports = {
-  
-  // ✔ POST reply
-  async postReply(req, res) {
-    const board = req.params.board;
-    const { thread_id, text, delete_password } = req.body;
+  async getReplies(req, res) {
+    const { thread_id } = req.query;
+    const thread = await Thread.findById(thread_id).lean();
 
-    const thread = await Thread.findById(thread_id);
-    if (!thread) return res.send("thread not found");
+    if (!thread) return res.json({});
+
+    const cleaned = {
+      _id: thread._id,
+      text: thread.text,
+      created_on: thread.created_on,
+      bumped_on: thread.bumped_on,
+      replies: thread.replies.map(r => ({
+        _id: r._id,
+        text: r.text,
+        created_on: r.created_on
+      }))
+    };
+
+    res.json(cleaned);
+  },
+
+  async createReply(req, res) {
+    const { board } = req.params;
+    const { thread_id, text, delete_password } = req.body;
 
     const reply = {
       _id: new Date().getTime().toString(),
       text,
-      delete_password,
       created_on: new Date(),
+      delete_password,
       reported: false
     };
 
+    const thread = await Thread.findById(thread_id);
+
     thread.replies.push(reply);
     thread.bumped_on = new Date();
+
     await thread.save();
 
     res.json(thread);
   },
 
-  // ✔ GET replies for one thread
-  async getReplies(req, res) {
-    const thread = await Thread.findById(req.query.thread_id).lean();
-    if (!thread) return res.send("thread not found");
-
-    delete thread.delete_password;
-    delete thread.reported;
-
-    thread.replies = thread.replies.map(r => {
-      delete r.delete_password;
-      delete r.reported;
-      return r;
-    });
-
-    res.json(thread);
-  },
-
-  // ✔ REPORT reply
   async reportReply(req, res) {
     const { thread_id, reply_id } = req.body;
 
     const thread = await Thread.findById(thread_id);
-    if (!thread) return res.send("thread not found");
-
     const reply = thread.replies.id(reply_id);
-    if (!reply) return res.send("reply not found");
 
-    reply.reported = true;
+    if (reply) reply.reported = true;
+
     await thread.save();
-
     res.send("reported");
-  },
-
-  // ✔ DELETE reply (replace text with "[deleted]")
-  async deleteReply(req, res) {
-    const { thread_id, reply_id, delete_password } = req.body;
-
-    const thread = await Thread.findById(thread_id);
-    if (!thread) return res.send("thread not found");
-
-    const reply = thread.replies.id(reply_id);
-    if (!reply) return res.send("reply not found");
-
-    if (reply.delete_password !== delete_password)
-      return res.send("incorrect password");
-
-    reply.text = "[deleted]";
-    await thread.save();
-
-    res.send("success");
   }
 };
