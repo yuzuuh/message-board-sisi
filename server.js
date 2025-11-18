@@ -1,51 +1,53 @@
-'use strict';
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-require('dotenv').config();
-
-const apiRoutes = require('./routes/api');
+"use strict";
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const apiRoutes = require("./routes/api");
 
 const app = express();
 
-// Middlewares
-app.use(cors());
+app.use(cors({ origin: '*' }));
+
+// --- Helmet settings required by FCC ---
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "script-src": ["'self'"],
+        "style-src": ["'self'"]
+      }
+    },
+    frameguard: { action: "sameorigin" }, // Only allow iframe from same site
+    dnsPrefetchControl: { allow: false }, // Disable DNS prefetching
+    referrerPolicy: { policy: "same-origin" } // Only send referrer for same site
+  })
+);
+
+// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Helmet EXACTO para FCC
-app.use(
-  helmet({
-    contentSecurityPolicy: false,
-  })
-);
+// Static files
+app.use("/public", express.static(process.cwd() + "/public"));
 
-app.use(
-  helmet.frameguard({
-    action: 'sameorigin',
-  })
-);
+// Routes
+apiRoutes(app);
 
-app.use(
-  helmet.dnsPrefetchControl({
-    allow: false,
-  })
-);
+app.route("/").get(function (req, res) {
+  res.sendFile(process.cwd() + "/views/index.html");
+});
 
-app.use(
-  helmet.referrerPolicy({
-    policy: 'same-origin',
-  })
-);
+// 404
+app.use(function (req, res) {
+  return res.status(404).type("text").send("Not Found");
+});
 
-// FCC requiere una página en la raíz
-app.use(express.static(__dirname + '/public'));
+// Listener
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log("Listening on port " + port);
+});
 
-// Rutas API
-app.use('/api', apiRoutes);
-
-// Puerto Render / local
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
- 
 module.exports = app;
